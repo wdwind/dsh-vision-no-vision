@@ -3,5 +3,5 @@
 # package by NAME — the profile's pnpm-managed node_modules provides it.
 # See README.md "Distribution" and docs/user/develop/basic/publish.md.
 - insert:
-    - id: vision-no-vision
+    - id: vision-nv
       name: dsh-vision-no-vision

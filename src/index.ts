@@ -6,11 +6,11 @@ import type { Context } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
-import { VISION_ANALYSIS_PROMPT } from './prompt.ts'
+import { VISION_NV } from './prompt.ts'
 
 const execFileAsync = promisify(execFile)
 
-export const name = 'dsh-vision-no-vision'
+export const name = 'vision-nv'
 
 // Wait until the tool registry and system-prompt services exist.
 export const inject = ['tools', 'systemPrompt']
@@ -75,13 +75,9 @@ async function runPython(
 
 export function apply(ctx: Context, config: Config) {
   ctx.tools.register(defineTool({
-    name: 'analyze_image',
-    description:
-      'Produce a deterministic ASCII-art representation of the image at `path` '
-      + '(metadata, grayscale view, edge view, coarse color grid) so a text-only '
-      + 'model can understand the image. The result arrives wrapped in '
-      + '<image_representation> tags; interpret it according to the '
-      + 'vision-analysis instructions.',
+    name: 'vision-nv',
+    description: 'Give a text-only LLM vision capability: turn the image at '
+      + '`path` into a text representation the model can analyze.',
     parameters: {
       path: {
         type: 'string',
@@ -109,8 +105,8 @@ export function apply(ctx: Context, config: Config) {
   // The instructions that teach the model how to read the representation.
   // Tool guidance sections conventionally live at order 100-199.
   ctx.systemPrompt.section({
-    name: 'vision-no-vision:analysis',
+    name: 'vision-nv:analysis',
     order: 150,
-    text: VISION_ANALYSIS_PROMPT,
+    text: VISION_NV,
   })
 }

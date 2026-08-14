@@ -12,5 +12,5 @@
 # The distributed form lives in bundle/cordis.patch.yml (a row that references
 # this package by NAME, for `dsh plugin --profile <name> add` installs).
 - insert:
-    - id: vision-no-vision
+    - id: vision-nv
       name: 'C:/D/Code/dsh-vision-without-vision-model/src/index.ts'

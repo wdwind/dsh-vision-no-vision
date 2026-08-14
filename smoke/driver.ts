@@ -35,7 +35,7 @@ export function apply(ctx: Context) {
       await makeTestImage()
       const result = await ctx.tools.execute({
         callId: CallId('smoke-1'),
-        name: 'analyze_image',
+        name: 'vision-nv',
         arguments: { path: 'test-image.png' },
         signal: new AbortController().signal,
       })

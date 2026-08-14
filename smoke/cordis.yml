@@ -1,12 +1,12 @@
 # Keyless smoke test composition (no API key, no model).
 #
-# Run from this directory with the vendored Cordis bin, pointing tsx at the
-# runtime tsconfig so bare @deepseek-ai/* names resolve (see README):
+# Run from this directory with the vendored Cordis bin (see README):
 #
-#   $env:TSX_TSCONFIG_PATH = 'C:\D\Code\dsh-vision-without-vision-model\tsconfig.runtime.json'
 #   node --import tsx C:/D/Code/deepseek-harness/vendor/cordis/bin.js
 #
-# Relative specifiers resolve against this directory.
+# Bare names and relative specifiers resolve from this directory: the
+# @deepseek-ai packages come from this project's node_modules (pnpm install),
+# and the checkout only supplies the dev bin.
 - name: '@deepseek-ai/dsh-system-prompt'
 - name: '@deepseek-ai/dsh-tools'
 - name: '../src/index.ts'

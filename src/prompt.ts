@@ -1,11 +1,11 @@
 /**
- * The vision-analysis instructions registered as a system-prompt section by
- * dsh-vision-no-vision. The image representation itself is NOT part of this
- * text: the analyze_image tool returns it (wrapped in <image_representation>
+ * The vision instructions registered as a system-prompt section by the
+ * vision-nv plugin. The image representation itself is NOT part of this
+ * text: the vision-nv tool returns it (wrapped in <image_representation>
  * tags) inside the tool result, which lands in the conversation right after
  * the section.
  */
-export const VISION_ANALYSIS_PROMPT = `You are a visual analysis assistant. Reconstruct the most plausible meaning of
+export const VISION_NV = `You are a visual analysis assistant. Reconstruct the most plausible meaning of
 an image from deterministic textual representations of its visual information.
 
 The input contains:
@@ -97,4 +97,7 @@ Use this output format:
 
 3. <concrete real-world interpretation> — <relative likelihood>%
    - Supporting evidence: <specific evidence from the representations>
-   - Uncertainty: <conflicting evidence or missing details>`
+   - Uncertainty: <conflicting evidence or missing details>
+
+The image representation arrives in the tool result, wrapped in
+<image_representation> tags.`

@@ -1,92 +1,19 @@
 {
-  // TYPE-CHECK configuration. This project has no node_modules of its own:
-  // every `@deepseek-ai/*` import resolves through the `paths` map below,
-  // anchored at the deepseek-harness checkout (adjust "../deepseek-harness"
-  // if your checkout lives elsewhere).
-  //
-  // Mappings point at the checkout's built DECLARATIONS (lib/types/*.d.ts):
-  // the compiler must not re-check vendored source (the checkout compiles
-  // each package under its own tsconfig; base settings like
-  // `exactOptionalPropertyTypes` do not hold for every vendor source), and
-  // `skipLibCheck` keeps the transitively referenced declarations unchecked.
-  //
-  // tsx (the runtime loader) must NOT read this file — it maps to .d.ts,
-  // which is not executable. tsconfig.runtime.json serves tsx instead; see
-  // README.md "Smoke test" for the TSX_TSCONFIG_PATH invocation.
-  "extends": "../deepseek-harness/tsconfig.base.json",
+  // Self-contained typecheck config. All @deepseek-ai/* imports resolve from
+  // this project's own node_modules (installed by `pnpm install` from the npm
+  // registry) — no machine-specific paths, no sibling-checkout references.
   "compilerOptions": {
-    "composite": false,
-    "incremental": false,
-    "declaration": false,
-    "declarationMap": false,
-    "sourceMap": false,
+    "target": "es2024",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "skipLibCheck": true,
     "noEmit": true,
-    // The checkout's @types packages; not reachable from this project's own
-    // location by the default upward walk.
-    "typeRoots": ["../deepseek-harness/node_modules/@types"],
-    // Replaces the base map (which points at checkout-relative source dirs):
-    // entries here are relative to THIS file, so resolution is correct no
-    // matter where the project is mounted.
-    "paths": {
-      "@deepseek-ai/cordis": ["../deepseek-harness/vendor/cordis/lib/types/index.d.ts"],
-      "@deepseek-ai/cosmokit": ["../deepseek-harness/vendor/cosmokit/lib/types/index.d.ts"],
-      "@deepseek-ai/schemastery": ["../deepseek-harness/vendor/schemastery/lib/types/index.d.ts"],
-      "@deepseek-ai/cordis-plugin-loader": ["../deepseek-harness/vendor/loader/lib/types/index.d.ts"],
-      "@deepseek-ai/cordis-plugin-include": ["../deepseek-harness/vendor/include/lib/types/index.d.ts"],
-      "@deepseek-ai/cordis-plugin-group": ["../deepseek-harness/vendor/group/lib/types/index.d.ts"],
-      "@deepseek-ai/cordis-plugin-timer": ["../deepseek-harness/vendor/timer/lib/types/index.d.ts"],
-      "@deepseek-ai/cordis-plugin-hmr": ["../deepseek-harness/vendor/hmr/lib/types/index.d.ts"],
-      "@deepseek-ai/cordis-plugin-logger-console": ["../deepseek-harness/vendor/logger-console/lib/types/index.d.ts"],
-      "@deepseek-ai/dsh-*": [
-        "../deepseek-harness/packages/core/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/prompt/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/llm/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/shell/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/terminal/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/subprocess/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/e2b/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/code-runtime/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/fs/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/lsp/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/skill/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/compaction/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/context/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/goal/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/feedback/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/schedule/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/guard/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/plan/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/preset/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/subagent/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/jobs/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/workflow/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/web/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/attachment/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/spill/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/todo/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/bundle/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/extensions/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/sandbox/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/hooks/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/session/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/session-query/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/settings/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/credentials/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/acp/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/storage/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/workspace/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/sdk/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/interaction/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/boot/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/examples/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/util/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/mcp/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/identity/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/test-support/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/host/*/lib/types/index.d.ts",
-        "../deepseek-harness/packages/client/*/lib/types/index.d.ts"
-      ]
-    }
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "types": ["node"]
   },
   "include": ["src", "smoke"]
 }
