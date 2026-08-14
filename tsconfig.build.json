@@ -1,0 +1,19 @@
+{
+  // BUILD configuration: emits the distributable lib/ from src/.
+  // Extends the typecheck config (same @deepseek-ai/* resolution), but:
+  //  - emits JavaScript + declarations into lib/ (noEmit off),
+  //  - does NOT extend .ts-import flags (they require noEmit),
+  //  - compiles only src/ (not the smoke test).
+  // Emitted import specifiers stay bare ("@deepseek-ai/dsh-tools"): the
+  // consumer's profile provides the packages at install time.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": false,
+    "sourceMap": false,
+    "outDir": "lib",
+    "rootDir": "src"
+  },
+  "include": ["src"]
+}

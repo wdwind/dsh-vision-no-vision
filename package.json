@@ -1,0 +1,47 @@
+{
+  "name": "dsh-vision-no-vision",
+  "version": "0.1.0",
+  "description": "Gives a text-only LLM vision capability: a backend plugin that converts images to ASCII-art representations (via a bundled Python script) and teaches the model to analyze them. No UI/client half.",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    }
+  },
+  "files": [
+    "lib",
+    "src",
+    "python",
+    "bundle"
+  ],
+  "scripts": {
+    "typecheck": "pnpm --dir ../deepseek-harness exec tsc -p ../dsh-vision-without-vision-model/tsconfig.json",
+    "build": "pnpm --dir ../deepseek-harness exec tsc -p ../dsh-vision-without-vision-model/tsconfig.build.json"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "cordis",
+    "plugin",
+    "tool",
+    "vision",
+    "ascii"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-tools": "^0.1.0-rc.5"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-tools": "^0.1.0-rc.5"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./bundle/cordis.patch.yml"
+    }
+  }
+}

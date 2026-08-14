@@ -1,0 +1,7 @@
+# Bundle layer: applied when a profile lists this package as a bundle
+# (package.json declares dsh.bundle -> this file). The row references the
+# package by NAME — the profile's pnpm-managed node_modules provides it.
+# See README.md "Distribution" and docs/user/develop/basic/publish.md.
+- insert:
+    - id: vision-no-vision
+      name: dsh-vision-no-vision
