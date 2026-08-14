@@ -19,7 +19,7 @@ How it works: for an image, the plugin runs a bundled Python script
 (`python/ascii_vision.py`) that produces a deterministic text representation —
 metadata, a grayscale view, an edge view, and a coarse color grid — and hands
 that text to the model together with a system-prompt section
-(`vision-nv:analysis`) that teaches the model how to reconstruct the image's
+(`vision-nv:see`) that teaches the model how to reconstruct the image's
 meaning from the representation.
 
 No UI/client half, no changes to the harness checkout: everything lives in
@@ -29,7 +29,7 @@ this repository.
 
 | Piece | What it does |
 |---|---|
-| `src/index.ts` | The Cordis plugin (`apply(ctx)`): registers the **`vision-nv`** tool on `ctx.tools` and the `vision-nv:analysis` section on `ctx.systemPrompt`. |
+| `src/index.ts` | The Cordis plugin (`apply(ctx)`): registers the **`vision-nv`** tool on `ctx.tools` and the `vision-nv:see` section on `ctx.systemPrompt`. |
 | `src/prompt.ts` | The vision instructions (`VISION_NV`): a two-stage analysis — complete visual analysis, then top three educated guesses. |
 | `python/ascii_vision.py` | The converter: image → metadata + GRAYSCALE VIEW + EDGE VIEW + COARSE COLOR GRID. Shipped as a runtime asset, resolved via `new URL('../python/ascii_vision.py', import.meta.url)` (works from `src/` in dev and from `lib/` when installed). |
 | `smoke/cordis.yml` + `smoke/driver.ts` | Keyless smoke test: creates a synthetic test image with Pillow, drives one real `vision-nv` call through the harness pipeline, prints the representation. |

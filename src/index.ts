@@ -105,7 +105,7 @@ export function apply(ctx: Context, config: Config) {
   // The instructions that teach the model how to read the representation.
   // Tool guidance sections conventionally live at order 100-199.
   ctx.systemPrompt.section({
-    name: 'vision-nv:analysis',
+    name: 'vision-nv:see',
     order: 150,
     text: VISION_NV,
   })
