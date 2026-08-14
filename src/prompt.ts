@@ -1,9 +1,9 @@
 /**
- * The vision instructions registered as a system-prompt section by the
- * vision-nv plugin. The image representation itself is NOT part of this
- * text: the vision-nv tool returns it (wrapped in <image_representation>
- * tags) inside the tool result, which lands in the conversation right after
- * the section.
+ * The vision instructions used by the vision-nv plugin for its INTERNAL model
+ * call: the tool asks the configured text model to interpret an image
+ * representation (system = this text, user message = the representation
+ * wrapped in <image_representation> tags) and returns the model's analysis as
+ * the tool result.
  */
 export const VISION_NV = `You are a visual analysis assistant. Reconstruct the most plausible meaning of
 an image from deterministic textual representations of its visual information.
@@ -99,5 +99,5 @@ Use this output format:
    - Supporting evidence: <specific evidence from the representations>
    - Uncertainty: <conflicting evidence or missing details>
 
-The image representation arrives in the tool result, wrapped in
+The image representation follows in the user message, wrapped in
 <image_representation> tags.`

@@ -5,6 +5,15 @@ A standalone, third-party [DeepSeek Harness](https://github.com/deepseek-ai/deep
 The npm package name is `dsh-vision-no-vision`; the plugin and its tool are
 called `vision-nv`.
 
+How it works: the `vision-nv` tool takes an image path, converts the image to
+a deterministic text representation (metadata, a grayscale view, an edge
+view, and a coarse color grid) with a bundled Python script, then asks the
+**user's configured text model** to interpret the representation and returns
+the model's final understanding of the image as the tool result.
+
+No UI/client half, no changes to the harness checkout: everything lives in
+this repository.
+
 ## Names
 
 These are three independent names — do not conflate them:
@@ -15,38 +24,23 @@ These are three independent names — do not conflate them:
 | plugin | `vision-nv` | `src/index.ts` → `export const name` | Cordis display metadata (labels the plugin in diagnostics). Free. |
 | tool | `vision-nv` | `defineTool({ name: 'vision-nv' })` | What the model sees and calls. Free. |
 
-How it works: for an image, the plugin runs a bundled Python script
-(`python/ascii_vision.py`) that produces a deterministic text representation —
-metadata, a grayscale view, an edge view, and a coarse color grid — and hands
-that text to the model together with a system-prompt section
-(`vision-nv:see`) that teaches the model how to reconstruct the image's
-meaning from the representation.
-
-No UI/client half, no changes to the harness checkout: everything lives in
-this repository.
-
 ## Architecture
 
 | Piece | What it does |
 |---|---|
-| `src/index.ts` | The Cordis plugin (`apply(ctx)`): registers the **`vision-nv`** tool on `ctx.tools` and the `vision-nv:see` section on `ctx.systemPrompt`. |
-| `src/prompt.ts` | The vision instructions (`VISION_NV`): a two-stage analysis — complete visual analysis, then top three educated guesses. |
+| `src/index.ts` | The Cordis plugin (`apply(ctx)`): registers the **`vision-nv`** tool on `ctx.tools`. The tool runs the Python converter, then makes an internal call through `ctx.llm` (the harness's configured model) and returns the analysis. |
+| `src/prompt.ts` | `VISION_NV` — the instructions for the internal model call: a two-stage analysis (complete visual analysis, then top three educated guesses). |
 | `python/ascii_vision.py` | The converter: image → metadata + GRAYSCALE VIEW + EDGE VIEW + COARSE COLOR GRID. Shipped as a runtime asset, resolved via `new URL('../python/ascii_vision.py', import.meta.url)` (works from `src/` in dev and from `lib/` when installed). |
-| `smoke/cordis.yml` + `smoke/driver.ts` | Keyless smoke test: creates a synthetic test image with Pillow, drives one real `vision-nv` call through the harness pipeline, prints the representation. |
+| `smoke/cordis.yml` + `smoke/driver.ts` | Keyless smoke test: creates a synthetic test image with Pillow, registers a **mock LLM adapter**, and drives one real `vision-nv` call through the harness pipeline. |
 
-The tool returns the representation wrapped in `<image_representation>` tags
-(the vision instructions say where it arrives):
+One `vision-nv` call = two stages:
 
-```
-<image_representation>
-METADATA
-format=PNG
-...
-COARSE COLOR GRID
-legend: K=black A=gray W=white R=red O=orange Y=yellow G=green C=cyan B=blue P=purple M=pink N=brown
-...
-</image_representation>
-```
+1. **Conversion (no model)**: `python ascii_vision.py <path>` → the
+   representation, wrapped in `<image_representation>` tags.
+2. **Interpretation (the configured text model)**: an internal
+   `ctx.llm.stream()` call — system = `VISION_NV` instructions, user message =
+   the wrapped representation, `tools: []` so the auxiliary call cannot make
+   tool calls — whose text output becomes the tool result.
 
 Configuration (via the plugin's `config` block in `cordis.yml`):
 
@@ -54,8 +48,16 @@ Configuration (via the plugin's `config` block in `cordis.yml`):
 - name: dsh-vision-no-vision
   config:
     pythonBin: python    # python executable (default 'python'; 'python3' is tried as fallback)
-    timeoutMs: 30000     # per-conversion hard cap (default 30000, min 1000, max 120000)
+    timeoutMs: 120000    # end-to-end cap per call, conversion + model (default 120000, min 1000, max 600000)
+    maxTokens: 2048      # output-token cap for the internal model call (default 2048, min 256, max 16384)
+    provider: deepseek   # optional explicit route — must be paired with model
+    model: deepseek-v4-flash
 ```
+
+Which model the internal call uses: the explicit `provider`/`model` pair when
+configured; otherwise the **session's active model** — the newest logged
+`request/header` route of the calling agent's session (what the user picked
+in the UI). Outside an agent session the explicit pair is required.
 
 ## Prerequisites
 
@@ -75,8 +77,9 @@ pnpm install
 ```
 
 All `@deepseek-ai/*` development dependencies come from the npm registry
-(`@deepseek-ai/cordis`, `@deepseek-ai/dsh-tools`, …) into this project's own
-`node_modules` — there are no machine-specific path mappings.
+(`@deepseek-ai/cordis`, `@deepseek-ai/dsh-tools`, `@deepseek-ai/dsh-llm`, …)
+into this project's own `node_modules` — there are no machine-specific path
+mappings.
 
 ## Development loop
 
@@ -84,7 +87,7 @@ In the commands below, `<deepseek-harness-checkout>` is the path to your
 local checkout of deepseek-harness and `<vision-nv-repo>` is the path to this
 repository.
 
-### 1. Smoke test (fastest, keyless)
+### 1. Smoke test (fastest, keyless, mock model)
 
 ```powershell
 Set-Location <vision-nv-repo>/smoke
@@ -94,20 +97,17 @@ node --import tsx <deepseek-harness-checkout>/vendor/cordis/bin.js
 Expected output (head):
 
 ```
-[smoke] representation lines: 84
-[smoke] head:
-<image_representation>
-METADATA
-format=PNG
-size=144x108
-orientation=landscape
-...
-[smoke] wrapped in <image_representation>: true
+[smoke] llm called with provider/model: smoke smoke-model
+[smoke] llm got system instructions: true
+[smoke] llm got representation: true
+[smoke] tool returned the final understanding:
+## Visual analysis
+### Composition
+The representation shows a bright landscape: ...
 ```
 
-The checkout path only supplies the vendored Cordis bin (a dev convenience);
-the plugin, the driver, and every `@deepseek-ai/*` package load from this
-project's `node_modules`.
+The mock adapter in `smoke/driver.ts` stands in for the user's text model, so
+the whole pipeline runs with no API key.
 
 ### 2. Load it into the Web GUI
 
@@ -124,11 +124,10 @@ pnpm dsh web
 
 `dsh plugin add` links this repository into the profile and activates the
 bundle layer (`bundle/cordis.patch.yml`, declared by `dsh.bundle` in
-`package.json`) — the same path users take when installing the published
-package. Open `http://127.0.0.1:3080` and ask the model to analyze an image
-file in the workspace (e.g. "Use vision-nv on screenshot.png and describe
-what it shows"). (Don't run while another dsh instance owns port 3080; use
-`--port`.)
+`package.json`). Open `http://127.0.0.1:3080` and ask the model to analyze an
+image file in the workspace (e.g. "Use vision-nv on screenshot.png and
+describe what it shows"). (Don't run while another dsh instance owns port
+3080; use `--port`.)
 
 ### 3. Typecheck and build
 
@@ -144,8 +143,8 @@ a user's setup purely through their **profile** composition.
 
 1. **Ship built artifacts**: `pnpm run build`, then publish. `package.json`
    declares the bundle manifest (`dsh.bundle.patch -> ./bundle/cordis.patch.yml`),
-   and the bundle patch references the package by name (`dsh-vision-no-vision`), which
-   the loader resolves from the installing profile's `node_modules`. The
+   and the bundle patch references the package by name (`dsh-vision-no-vision`),
+   which the loader resolves from the installing profile's `node_modules`. The
    `python/` directory ships inside the package (`files`), so the script is
    found next to `lib/` at runtime.
 
@@ -155,7 +154,7 @@ a user's setup purely through their **profile** composition.
    ```sh
    dsh plugin --profile web add dsh-vision-no-vision       # from npm (prebuilt)
    dsh plugin --profile web add ./dsh-vision-no-vision-0.1.0.tgz  # tarball
-   dsh plugin --profile web add ./path/to/repo         # local checkout
+   dsh plugin --profile web add ./path/to/repo             # local checkout
    dsh plugin --profile web add github:you/dsh-vision-no-vision#<sha>  # git (needs `prepare` build + pnpm allowBuilds)
    ```
 
@@ -170,12 +169,13 @@ vs. profile manifests, layer order, the GitHub `prepare`/`allowBuilds` caveat).
 - **Backend-only**: no `dsh.client` declaration, no client bundle, no UI
   packages, no harness-side registration. Loads identically in the `web` and
   `headless` profiles.
-- **Failure paths are model-visible**: a missing file, missing Pillow, or an
-  unreadable image surfaces the script's stderr as the tool result, so the
-  model can explain the problem instead of guessing.
+- **Failure paths are model-visible**: a missing file, missing Pillow, an
+  unreadable image, an undetermined model route, or a failed internal model
+  call surfaces as the tool result, so the host model can explain the problem
+  instead of guessing.
 - The converter script is intentionally untouched (your spec). Pillow ≥10
   prints deprecation warnings to stderr on `getdata()`; they are ignored
   unless the run fails.
-- `@deepseek-ai/schemastery` is a runtime dependency; `@deepseek-ai/cordis`
-  and `@deepseek-ai/dsh-tools` are peer dependencies (the harness provides
-  them) mirrored in `devDependencies` for development.
+- `@deepseek-ai/schemastery` is a runtime dependency; `@deepseek-ai/cordis`,
+  `@deepseek-ai/dsh-tools`, and `@deepseek-ai/dsh-llm` are peer dependencies
+  (the harness provides them) mirrored in `devDependencies` for development.
