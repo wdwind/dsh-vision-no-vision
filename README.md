@@ -1,8 +1,19 @@
-# vision-nv
+# dsh-vision-no-vision
 
 A standalone, third-party [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
 (dsh) **backend plugin** that gives a text-only LLM vision capability.
-The npm package name is `vision-nv`.
+The npm package name is `dsh-vision-no-vision`; the plugin and its tool are
+called `vision-nv`.
+
+## Names
+
+These are three independent names — do not conflate them:
+
+| Name | Value | Where | Constraint |
+|---|---|---|---|
+| npm package | `dsh-vision-no-vision` | `package.json` → `name` | Install identifier (`dsh plugin add …`). The bundle row's `name` must equal it: the loader resolves exactly that string from the profile's `node_modules`. |
+| plugin | `vision-nv` | `src/index.ts` → `export const name` | Cordis display metadata (labels the plugin in diagnostics). Free. |
+| tool | `vision-nv` | `defineTool({ name: 'vision-nv' })` | What the model sees and calls. Free. |
 
 How it works: for an image, the plugin runs a bundled Python script
 (`python/ascii_vision.py`) that produces a deterministic text representation —
@@ -40,7 +51,7 @@ legend: K=black A=gray W=white R=red O=orange Y=yellow G=green C=cyan B=blue P=p
 Configuration (via the plugin's `config` block in `cordis.yml`):
 
 ```yaml
-- name: vision-nv
+- name: dsh-vision-no-vision
   config:
     pythonBin: python    # python executable (default 'python'; 'python3' is tried as fallback)
     timeoutMs: 30000     # per-conversion hard cap (default 30000, min 1000, max 120000)
@@ -133,7 +144,7 @@ a user's setup purely through their **profile** composition.
 
 1. **Ship built artifacts**: `pnpm run build`, then publish. `package.json`
    declares the bundle manifest (`dsh.bundle.patch -> ./bundle/cordis.patch.yml`),
-   and the bundle patch references the package by name (`vision-nv`), which
+   and the bundle patch references the package by name (`dsh-vision-no-vision`), which
    the loader resolves from the installing profile's `node_modules`. The
    `python/` directory ships inside the package (`files`), so the script is
    found next to `lib/` at runtime.
@@ -142,8 +153,8 @@ a user's setup purely through their **profile** composition.
    the profile and auto-appends the bundle to `dsh.profile.bundles`):
 
    ```sh
-   dsh plugin --profile web add vision-nv              # from npm (prebuilt)
-   dsh plugin --profile web add ./vision-nv-0.1.0.tgz  # tarball
+   dsh plugin --profile web add dsh-vision-no-vision       # from npm (prebuilt)
+   dsh plugin --profile web add ./dsh-vision-no-vision-0.1.0.tgz  # tarball
    dsh plugin --profile web add ./path/to/repo         # local checkout
    dsh plugin --profile web add github:you/dsh-vision-no-vision#<sha>  # git (needs `prepare` build + pnpm allowBuilds)
    ```
