@@ -1,0 +1,15 @@
+{
+  // BUILD configuration: emits the distributable lib/ from src/.
+  // Import specifiers stay bare ("@deepseek-ai/dsh-tools", "./prompt.js"):
+  // the consumer's profile provides the packages at install time.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": false,
+    "sourceMap": false,
+    "outDir": "lib",
+    "rootDir": "src"
+  },
+  "include": ["src"]
+}

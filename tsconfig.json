@@ -1,0 +1,19 @@
+{
+  // Self-contained typecheck config. All @deepseek-ai/* imports resolve from
+  // this project's own node_modules (installed by `pnpm install` from the npm
+  // registry) — no machine-specific paths, no sibling-checkout references.
+  "compilerOptions": {
+    "target": "es2024",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "types": ["node"]
+  },
+  "include": ["src", "smoke"]
+}
