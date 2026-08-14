@@ -48,8 +48,11 @@ Configuration (via the plugin's `config` block in `cordis.yml`):
 - name: dsh-vision-no-vision
   config:
     pythonBin: python    # python executable (default 'python'; 'python3' is tried as fallback)
-    timeoutMs: 120000    # end-to-end cap per call, conversion + model (default 120000, min 1000, max 600000)
-    maxTokens: 2048      # output-token cap for the internal model call (default 2048, min 256, max 16384)
+    timeoutMs: 3600000  # end-to-end cap per call, conversion + model
+                          # (default 3600000 = 1 hour; min 1000, max 2147483647 ≈ 24.8 days)
+    # maxTokens: 4096    # optional output-token cap for the internal model call
+                          # (unset by default = the maximum the selected provider/model route allows;
+                          # min 256 when set, no upper bound)
     provider: deepseek   # optional explicit route — must be paired with model
     model: deepseek-v4-flash
 ```

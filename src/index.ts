@@ -20,10 +20,20 @@ export const inject = ['tools', 'llm']
 export interface Config {
   /** Python executable used to run the ASCII-art script. */
   pythonBin: string
-  /** Hard cap on one complete analysis (conversion + model call). */
+  /**
+   * Hard cap on one complete analysis (conversion + model call), in ms.
+   * Maximum is 2_147_483_647 ms (~24.8 days) — the platform's maximum timer
+   * delay; the harness's tool-call timeout policy rejects anything above it.
+   */
   timeoutMs: number
-  /** Output-token cap for the internal vision-model call. */
-  maxTokens: number
+  /**
+   * Optional output-token cap for the internal vision-model call. Unset
+   * (the default) means "the maximum the selected provider/model route
+   * allows": the plugin asks the LLM service for the route's advertised
+   * output cap and uses that. An explicit value is honored, but is clamped
+   * to the route cap so the provider never rejects the request.
+   */
+  maxTokens?: number
   /** Optional explicit provider route; must be paired with `model`. Defaults to the session's active model. */
   provider?: string
   /** Optional explicit model id; must be paired with `provider`. Defaults to the session's active model. */
@@ -32,8 +42,8 @@ export interface Config {
 
 export const Config: Schema<Config> = Schema.object({
   pythonBin: Schema.string().default('python'),
-  timeoutMs: Schema.number().min(1000).max(600000).default(120000),
-  maxTokens: Schema.number().min(256).max(16384).default(2048),
+  timeoutMs: Schema.number().min(1000).max(2_147_483_647).default(3_600_000),
+  maxTokens: Schema.number().min(256),
   provider: Schema.string(),
   model: Schema.string(),
 })
@@ -137,6 +147,32 @@ export function apply(ctx: Context, config: Config) {
         )
       }
 
+      // Ask the LLM service for the highest output cap this exact route
+      // accepts. Best-effort: adapters that cannot answer (or older service
+      // versions without the query) must not block the call.
+      let routeMaxTokens: number | undefined
+      if (typeof ctx.llm.resolveModelInfo === 'function') {
+        try {
+          const info = await ctx.llm.resolveModelInfo(provider, model, exec.signal)
+          routeMaxTokens = info.defaultMaxTokens
+        } catch {
+          // no known cap — fall through
+        }
+      }
+      // Unset `maxTokens` means "unlimited": use the route's own maximum when
+      // the adapter discloses one, otherwise omit the field entirely and let
+      // the runtime/provider apply its normal cap. An explicit configured cap
+      // wins, but is clamped to the route maximum so the provider never
+      // rejects the call as over-limit.
+      let maxTokens: number | undefined
+      if (config.maxTokens !== undefined) {
+        maxTokens = routeMaxTokens === undefined
+          ? config.maxTokens
+          : Math.min(config.maxTokens, routeMaxTokens)
+      } else {
+        maxTokens = routeMaxTokens
+      }
+
       const options: GenerateOptions = {
         provider,
         model,
@@ -146,7 +182,7 @@ export function apply(ctx: Context, config: Config) {
         })],
         system: VISION_NV,
         tools: [],
-        maxTokens: config.maxTokens,
+        ...(maxTokens === undefined ? {} : { maxTokens }),
         ...(exec.agent !== undefined ? { sessionId: exec.agent.session.id } : {}),
         signal: AbortSignal.any([exec.signal, AbortSignal.timeout(config.timeoutMs)]),
       }
@@ -169,7 +205,10 @@ export function apply(ctx: Context, config: Config) {
         throw new Error(`vision-nv: the vision model call failed: ${finish.failure.message}`)
       }
       if (finish.kind === 'max-tokens') {
-        throw new Error('vision-nv: the analysis output reached the token limit (maxTokens)')
+        const cap = maxTokens === undefined ? 'the route maximum' : `${maxTokens} tokens`
+        throw new Error(
+          `vision-nv: the analysis output reached the token limit (${cap}) — the model stopped before finishing; use a model with a larger output limit`,
+        )
       }
       const blocks = assembler.blocks()
       const text = blocks
