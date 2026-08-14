@@ -2,7 +2,7 @@
 #
 # Run from this directory with the vendored Cordis bin (see README):
 #
-#   node --import tsx C:/D/Code/deepseek-harness/vendor/cordis/bin.js
+#   node --import tsx <deepseek-harness-checkout>/vendor/cordis/bin.js
 #
 # Bare names and relative specifiers resolve from this directory: the
 # @deepseek-ai packages come from this project's node_modules (pnpm install),

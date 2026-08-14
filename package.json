@@ -1,5 +1,5 @@
 {
-  "name": "dsh-vision-no-vision",
+  "name": "vision-nv",
   "version": "0.1.0",
   "description": "Gives a text-only LLM vision capability",
   "type": "module",
