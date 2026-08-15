@@ -1,6 +1,4 @@
-import { execFile } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
-import { promisify } from 'node:util'
+import { resolve } from 'node:path'
 
 import type { Context } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
@@ -8,9 +6,8 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import { BlockAssembler, createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { GenerateOptions } from '@deepseek-ai/dsh-llm'
 
+import { describeImage } from './ascii-vision.ts'
 import { VISION_NV } from './prompt.ts'
-
-const execFileAsync = promisify(execFile)
 
 export const name = 'vision-nv'
 
@@ -18,8 +15,6 @@ export const name = 'vision-nv'
 export const inject = ['tools', 'llm']
 
 export interface Config {
-  /** Python executable used to run the ASCII-art script. */
-  pythonBin: string
   /**
    * Hard cap on one complete analysis (conversion + model call), in ms.
    * Maximum is 2_147_483_647 ms (~24.8 days) — the platform's maximum timer
@@ -41,58 +36,11 @@ export interface Config {
 }
 
 export const Config: Schema<Config> = Schema.object({
-  pythonBin: Schema.string().default('python'),
   timeoutMs: Schema.number().min(1000).max(2_147_483_647).default(3_600_000),
   maxTokens: Schema.number().min(256),
   provider: Schema.string(),
   model: Schema.string(),
 })
-
-/** Where the shipped python script lives, relative to this module. */
-function scriptPath(): string {
-  return fileURLToPath(new URL('../python/ascii_vision.py', import.meta.url))
-}
-
-/**
- * Run the conversion script. Tries `config.pythonBin` first, then the
- * conventional `python3` fallback, so a missing configured binary degrades
- * instead of failing. Any other failure (missing Pillow, bad image, non-zero
- * exit) throws with the script's stderr so the caller sees the reason.
- */
-async function runPython(
-  config: Config,
-  args: readonly string[],
-  options: { signal: AbortSignal; cwd?: string },
-): Promise<string> {
-  const candidates = [...new Set([config.pythonBin, 'python', 'python3'])]
-  for (const bin of candidates) {
-    try {
-      const { stdout } = await execFileAsync(bin, args, {
-        timeout: config.timeoutMs,
-        signal: options.signal,
-        cwd: options.cwd,
-        maxBuffer: 1024 * 1024,
-        windowsHide: true,
-      })
-      return stdout
-    } catch (error) {
-      const code = (error as { code?: unknown } | null)?.code
-      if (code === 'ENOENT') {
-        continue // executable missing — try the next candidate
-      }
-      // Non-zero exit or spawn failure: surface the script's diagnostics.
-      const detail = (
-        (error as { stderr?: string; stdout?: string } | null)?.stderr
-        ?? (error as { stdout?: string } | null)?.stdout
-        ?? (error instanceof Error ? error.message : String(error))
-      ).trim()
-      throw new Error(`ascii_vision failed (${bin}): ${detail}`)
-    }
-  }
-  throw new Error(
-    `no python executable found (tried ${candidates.join(', ')}); install Python and Pillow (see requirements.txt)`,
-  )
-}
 
 /** Ask the configured text model to interpret one image representation. */
 export function apply(ctx: Context, config: Config) {
@@ -115,12 +63,18 @@ export function apply(ctx: Context, config: Config) {
     timeoutMs: config.timeoutMs,
     async execute(args, exec) {
       // Resolve relative image paths against the calling agent's working
-      // directory; without an agent, the harness process cwd applies.
+      // directory; without an agent, the harness process cwd applies. The
+      // converter runs in-process — no Python or Pillow involved.
       const cwd = exec.agent?.session.header.cwd
-      const stdout = await runPython(config, [scriptPath(), args.path], {
-        signal: exec.signal,
-        ...(cwd !== undefined ? { cwd } : {}),
-      })
+      const path = cwd === undefined ? resolve(args.path) : resolve(cwd, args.path)
+      let stdout: string
+      try {
+        stdout = await describeImage(path, { displayPath: args.path })
+      } catch (error) {
+        throw new Error(
+          `vision-nv: unable to process ${args.path}: ${error instanceof Error ? error.message : String(error)}`,
+        )
+      }
       const representation = `<image_representation>\n${stdout.trimEnd()}\n</image_representation>`
 
       // Which model? Explicit config pair wins; otherwise the session's

@@ -7,9 +7,11 @@ called `vision-nv`.
 
 How it works: the `vision-nv` tool takes an image path, converts the image to
 a deterministic text representation (metadata, a grayscale view, an edge
-view, and a coarse color grid) with a bundled Python script, then asks the
-**user's configured text model** to interpret the representation and returns
-the model's final understanding of the image as the tool result.
+view, and a coarse color grid) with a built-in TypeScript converter — decoding
+through small libraries (bmp-ts, omggif, pngjs, sharp), processing through
+sharp — no Python or Pillow involved. It then asks the **user's configured
+text model** to interpret the representation and returns the model's final
+understanding of the image as the tool result.
 
 No UI/client half, no changes to the harness checkout: everything lives in
 this repository.
@@ -28,15 +30,17 @@ These are three independent names — do not conflate them:
 
 | Piece | What it does |
 |---|---|
-| `src/index.ts` | The Cordis plugin (`apply(ctx)`): registers the **`vision-nv`** tool on `ctx.tools`. The tool runs the Python converter, then makes an internal call through `ctx.llm` (the harness's configured model) and returns the analysis. |
+| `src/index.ts` | The Cordis plugin (`apply(ctx)`): registers the **`vision-nv`** tool on `ctx.tools`. The tool runs the converter in-process, then makes an internal call through `ctx.llm` (the harness's configured model) and returns the analysis. |
 | `src/prompt.ts` | `VISION_NV` — the instructions for the internal model call: a two-stage analysis (complete visual analysis, then top three educated guesses). |
-| `python/ascii_vision.py` | The converter: image → metadata + GRAYSCALE VIEW + EDGE VIEW + COARSE COLOR GRID. Shipped as a runtime asset, resolved via `new URL('../python/ascii_vision.py', import.meta.url)` (works from `src/` in dev and from `lib/` when installed). |
-| `smoke/cordis.yml` + `smoke/driver.ts` | Keyless smoke test: creates a synthetic test image with Pillow, registers a **mock LLM adapter**, and drives one real `vision-nv` call through the harness pipeline. |
+| `src/ascii-vision.ts` | The converter: image → metadata + GRAYSCALE VIEW + EDGE VIEW + COARSE COLOR GRID. Decoding is delegated to small libraries, and grayscale / edge detection / resize are done by sharp. Also runnable directly: `node lib/ascii-vision.js IMAGE`. |
+| `src/decode.ts` | The decoding layer: bmp-ts (BMP), omggif (GIF), pngjs (PNG) — one small, well-tested library per format where sharp can't match; everything else goes through sharp. |
+| `smoke/cordis.yml` + `smoke/driver.ts` | Keyless smoke test: draws a synthetic test image and encodes it with sharp (PNG and an EXIF-rotated JPEG), registers a **mock LLM adapter**, and drives two real `vision-nv` calls through the harness pipeline. |
 
 One `vision-nv` call = two stages:
 
-1. **Conversion (no model)**: `python ascii_vision.py <path>` → the
-   representation, wrapped in `<image_representation>` tags.
+1. **Conversion (no model)**: the built-in TypeScript converter reads the
+   image and produces the representation, wrapped in `<image_representation>`
+   tags.
 2. **Interpretation (the configured text model)**: an internal
    `ctx.llm.stream()` call — system = `VISION_NV` instructions, user message =
    the wrapped representation, `tools: []` so the auxiliary call cannot make
@@ -47,7 +51,6 @@ Configuration (via the plugin's `config` block in `cordis.yml`):
 ```yaml
 - name: dsh-vision-no-vision
   config:
-    pythonBin: python    # python executable (default 'python'; 'python3' is tried as fallback)
     timeoutMs: 3600000  # end-to-end cap per call, conversion + model
                           # (default 3600000 = 1 hour; min 1000, max 2147483647 ≈ 24.8 days)
     # maxTokens: 4096    # optional output-token cap for the internal model call
@@ -65,8 +68,10 @@ in the UI). Outside an agent session the explicit pair is required.
 ## Prerequisites
 
 - Node.js + pnpm.
-- **Python 3** with **Pillow** (`pip install -r requirements.txt`). The plugin
-  surfaces a clear error message when Python or Pillow is missing.
+- Nothing else at development or runtime: `pnpm install` fetches `sharp`
+  together with its platform-specific prebuilt binary, so users need no
+  Python, no Pillow, and no compiler (on the rare platforms without a sharp
+  prebuild, building libvips from source requires a C toolchain).
 - A deepseek-harness checkout is only needed to *run* against a harness during
   development (the vendored Cordis bin for the smoke test and the `dsh` CLI
   for the Web GUI). The plugin itself has no compile-time or runtime
@@ -103,14 +108,19 @@ Expected output (head):
 [smoke] llm called with provider/model: smoke smoke-model
 [smoke] llm got system instructions: true
 [smoke] llm got representation: true
-[smoke] tool returned the final understanding:
+[smoke] png decoded (format/size/grid): true
+[smoke] tool returned the final understanding (png):
 ## Visual analysis
 ### Composition
 The representation shows a bright landscape: ...
+[smoke] jpeg exif orientation applied (144x108 -> 108x144): true
+[smoke] tool returned the final understanding (jpeg):
+...
 ```
 
 The mock adapter in `smoke/driver.ts` stands in for the user's text model, so
-the whole pipeline runs with no API key.
+the whole pipeline runs with no API key. The test images are drawn into a raw
+buffer and encoded with sharp — no Python anywhere.
 
 ### 2. Load it into the Web GUI
 
@@ -136,8 +146,11 @@ describe what it shows"). (Don't run while another dsh instance owns port
 
 ```sh
 pnpm run typecheck   # tsc -p tsconfig.json
-pnpm run build       # emits lib/index.js + lib/prompt.js + lib/types/*.d.ts
+pnpm run build       # emits lib/index.js + lib/prompt.js + lib/ascii-vision.js + lib/types/*.d.ts
 ```
+
+`lib/cli.js` is also a standalone CLI: `node lib/cli.js IMAGE` prints the
+same representation the tool feeds to the model.
 
 ## Distribution — how other people install it
 
@@ -147,22 +160,31 @@ a user's setup purely through their **profile** composition.
 1. **Ship built artifacts**: `pnpm run build`, then publish. `package.json`
    declares the bundle manifest (`dsh.bundle.patch -> ./bundle/cordis.patch.yml`),
    and the bundle patch references the package by name (`dsh-vision-no-vision`),
-   which the loader resolves from the installing profile's `node_modules`. The
-   `python/` directory ships inside the package (`files`), so the script is
-   found next to `lib/` at runtime.
+   which the loader resolves from the installing profile's `node_modules`.
+   `sharp` is a regular runtime dependency, so its prebuilt binary installs
+   automatically from the same registry.
 
 2. **Users install it** (any of these — `dsh plugin` forwards to pnpm inside
    the profile and auto-appends the bundle to `dsh.profile.bundles`):
 
    ```sh
    dsh plugin --profile web add dsh-vision-no-vision       # from npm (prebuilt)
-   dsh plugin --profile web add ./dsh-vision-no-vision-0.1.0.tgz  # tarball
+   dsh plugin --profile web add ./dsh-vision-no-vision-0.3.0.tgz  # tarball
    dsh plugin --profile web add ./path/to/repo             # local checkout
-   dsh plugin --profile web add github:you/dsh-vision-no-vision#<sha>  # git (needs `prepare` build + pnpm allowBuilds)
+   dsh plugin --profile web add github:you/dsh-vision-no-vision#<sha>  # git
    ```
 
-3. **Users also need Python + Pillow** on their machine (the plugin surfaces
-   a clear error otherwise) — document this when you publish.
+   Local-checkout and git installs build automatically: the `prepare` script
+   runs `pnpm run build`, so `lib/` is produced on the spot (no checked-in
+   artifacts needed).
+
+3. **No extra runtime setup**: all decoders are pure-JS packages (bmp-ts,
+   omggif, pngjs) plus `sharp`, whose platform-specific prebuilt binary comes
+   from the registry as an optional dependency — no lifecycle scripts, no pnpm
+   `allowBuilds` entries, no compiler. Formats: BMP, GIF, PNG (including
+   16-bit and interlaced), JPEG, WebP, TIFF, AVIF, HEIF, SVG, PDF (first page
+   for animated/multi-page files); EXIF orientation is auto-applied on the
+   sharp path.
 
 Full reference: `docs/user/develop/basic/publish.md` in the checkout (bundle
 vs. profile manifests, layer order, the GitHub `prepare`/`allowBuilds` caveat).
@@ -172,13 +194,25 @@ vs. profile manifests, layer order, the GitHub `prepare`/`allowBuilds` caveat).
 - **Backend-only**: no `dsh.client` declaration, no client bundle, no UI
   packages, no harness-side registration. Loads identically in the `web` and
   `headless` profiles.
-- **Failure paths are model-visible**: a missing file, missing Pillow, an
-  unreadable image, an undetermined model route, or a failed internal model
+- **Failure paths are model-visible**: a missing file, an unreadable or
+  unsupported image, an undetermined model route, or a failed internal model
   call surfaces as the tool result, so the host model can explain the problem
   instead of guessing.
-- The converter script is intentionally untouched (your spec). Pillow ≥10
-  prints deprecation warnings to stderr on `getdata()`; they are ignored
-  unless the run fails.
-- `@deepseek-ai/schemastery` is a runtime dependency; `@deepseek-ai/cordis`,
-  `@deepseek-ai/dsh-tools`, and `@deepseek-ai/dsh-llm` are peer dependencies
-  (the harness provides them) mirrored in `devDependencies` for development.
+- The converter delegates everything to libraries — no hand-rolled image
+  processing, no Python. Decoding: bmp-ts (BMP), omggif (GIF, first frame,
+  transparency mapped through the palette), pngjs (PNG, including 16-bit
+  samples and interlacing), sharp (JPEG, WebP, TIFF, AVIF, HEIF, SVG, PDF,
+  …). Processing: sharp (libvips) does grayscale (`b-w`), edge detection
+  (3x3 `[-1,-1,-1,-1,8,-1,-1,-1,-1]` convolution), and Lanczos downscale for
+  the grayscale and edge views. Only the final mappings are JS: byte value →
+  character density ramp, and RGB → nearest coarse palette code. The coarse
+  color grid uses a plain block average per cell (sharp exposes no
+  box/average kernel, and Lanczos ringing would smear colors across hard
+  edges).
+- `python/ascii_vision.py` and `requirements.txt` remain in the repository as
+  a historical reference only; they are not shipped in the package (`files`)
+  and nothing calls them.
+- `@deepseek-ai/schemastery` and `sharp` are runtime dependencies;
+  `@deepseek-ai/cordis`, `@deepseek-ai/dsh-tools`, and `@deepseek-ai/dsh-llm`
+  are peer dependencies (the harness provides them) mirrored in
+  `devDependencies` for development.

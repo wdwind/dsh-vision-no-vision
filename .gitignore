@@ -4,3 +4,5 @@ lib/
 *.tsbuildinfo
 .DS_Store
 smoke/test-image.png
+smoke/test-image.jpg
+tmp/
