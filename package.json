@@ -1,6 +1,6 @@
 {
   "name": "dsh-vision-no-vision",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Gives a text-only LLM vision capability",
   "type": "module",
   "main": "lib/index.js",
@@ -14,12 +14,12 @@
   "files": [
     "lib",
     "src",
-    "python",
     "bundle"
   ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "build": "tsc -p tsconfig.build.json"
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "pnpm run build"
   },
   "keywords": [
     "dsh",
@@ -32,7 +32,11 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@deepseek-ai/schemastery": "^3.18.1"
+    "@deepseek-ai/schemastery": "^3.18.1",
+    "bmp-ts": "^1.0.9",
+    "omggif": "^1.0.10",
+    "pngjs": "^7.0.0",
+    "sharp": "^0.35.3"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
@@ -46,6 +50,8 @@
     "@deepseek-ai/dsh-llm": "^0.1.0-rc.6",
     "@deepseek-ai/cordis-plugin-include": "^1.0.6",
     "@types/node": "^24.0.0",
+    "@types/omggif": "^1.0.5",
+    "@types/pngjs": "^6.0.5",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0"
   },
