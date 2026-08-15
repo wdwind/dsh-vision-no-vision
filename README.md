@@ -32,7 +32,7 @@ These are three independent names — do not conflate them:
 |---|---|
 | `src/index.ts` | The Cordis plugin (`apply(ctx)`): registers the **`vision-nv`** tool on `ctx.tools`. The tool runs the converter in-process, then makes an internal call through `ctx.llm` (the harness's configured model) and returns the analysis. |
 | `src/prompt.ts` | `VISION_NV` — the instructions for the internal model call: a two-stage analysis (complete visual analysis, then top three educated guesses). |
-| `src/ascii-vision.ts` | The converter: image → metadata + GRAYSCALE VIEW + EDGE VIEW + COARSE COLOR GRID. Decoding is delegated to small libraries, and grayscale / edge detection / resize are done by sharp. Also runnable directly: `node lib/ascii-vision.js IMAGE`. |
+| `src/ascii-vision.ts` | The converter: image → metadata + GRAYSCALE VIEW + EDGE VIEW + COARSE COLOR GRID. Decoding is delegated to small libraries; luma, edge detection, and resize are done with a few deterministic operations. Also runnable directly: `node lib/cli.js IMAGE`. |
 | `src/decode.ts` | The decoding layer: bmp-ts (BMP), omggif (GIF), pngjs (PNG) — one small, well-tested library per format where sharp can't match; everything else goes through sharp. |
 | `smoke/cordis.yml` + `smoke/driver.ts` | Keyless smoke test: draws a synthetic test image and encodes it with sharp (PNG and an EXIF-rotated JPEG), registers a **mock LLM adapter**, and drives two real `vision-nv` calls through the harness pipeline. |
 
@@ -202,13 +202,14 @@ vs. profile manifests, layer order, the GitHub `prepare`/`allowBuilds` caveat).
   processing, no Python. Decoding: bmp-ts (BMP), omggif (GIF, first frame,
   transparency mapped through the palette), pngjs (PNG, including 16-bit
   samples and interlacing), sharp (JPEG, WebP, TIFF, AVIF, HEIF, SVG, PDF,
-  …). Processing: sharp (libvips) does grayscale (`b-w`), edge detection
-  (3x3 `[-1,-1,-1,-1,8,-1,-1,-1,-1]` convolution), and Lanczos downscale for
-  the grayscale and edge views. Only the final mappings are JS: byte value →
-  character density ramp, and RGB → nearest coarse palette code. The coarse
-  color grid uses a plain block average per cell (sharp exposes no
-  box/average kernel, and Lanczos ringing would smear colors across hard
-  edges).
+  …). Processing: grayscale is computed with Pillow's luma formula (ITU-R
+  601-2, so the character views match the original Python converter); sharp
+  (libvips) does edge detection (3x3 `[-1,-1,-1,-1,8,-1,-1,-1,-1]`
+  convolution) and Lanczos downscale for the grayscale and edge views. Only
+  the final mappings are JS: byte value → character density ramp, and RGB →
+  nearest coarse palette code. The coarse color grid uses a plain block
+  average per cell (sharp exposes no box/average kernel, and Lanczos ringing
+  would smear colors across hard edges).
 - `python/ascii_vision.py` and `requirements.txt` remain in the repository as
   a historical reference only; they are not shipped in the package (`files`)
   and nothing calls them.

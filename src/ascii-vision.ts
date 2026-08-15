@@ -104,6 +104,15 @@ function mean(values: Uint8Array): number {
   return sum / values.length
 }
 
+/** ITU-R 601-2 luma, the same formula Pillow's convert('L') uses (L24). */
+function luma(rgb: Uint8Array): Uint8Array {
+  const out = new Uint8Array(rgb.length / 3)
+  for (let i = 0, j = 0; i < rgb.length; i += 3, j++) {
+    out[j] = (rgb[i]! * 19595 + rgb[i + 1]! * 38470 + rgb[i + 2]! * 7471 + 0x8000) >> 16
+  }
+  return out
+}
+
 /**
  * The coarse color grid is a plain block average: each output cell is the
  * mean of the source pixels it covers, so hard edges yield a dominant color
@@ -155,16 +164,21 @@ export async function describeImage(path: string, options: DescribeOptions = {})
 
   const targetWidth = ASCII_WIDTH
   const targetHeight = gridHeight(width, height, targetWidth)
-  const rawRgb = { raw: { width, height, channels: 3 as const } }
   const rawGray = { raw: { width, height, channels: 1 as const } }
-  const run = (pipeline: ReturnType<typeof sharp>) => pipeline.raw().toBuffer({ resolveWithObject: true })
+  // sharp converts to sRGB on output by default, which would make raw()
+  // 3-channel and misalign row indexing; force b-w so every view stays
+  // exactly 1 byte per pixel.
+  const toBw = (pipeline: ReturnType<typeof sharp>) => pipeline
+    .toColourspace('b-w')
+    .raw()
+    .toBuffer({ resolveWithObject: true })
 
-  // Full-resolution grayscale (brightness source), then the two resized views.
-  const grayFull = await run(sharp(rgb, rawRgb).toColourspace('b-w'))
-  const gray = new Uint8Array(grayFull.data.buffer, grayFull.data.byteOffset, grayFull.data.byteLength)
+  // Grayscale (brightness source) computed with Pillow's luma formula, then
+  // the two resized views via sharp.
+  const gray = luma(rgb)
   const [grayView, edgeView] = await Promise.all([
-    run(sharp(gray, rawGray).resize(targetWidth, targetHeight, { kernel: 'lanczos3' })),
-    run(sharp(gray, rawGray)
+    toBw(sharp(gray, rawGray).resize(targetWidth, targetHeight, { kernel: 'lanczos3' })),
+    toBw(sharp(gray, rawGray)
       .convolve({ width: 3, height: 3, kernel: [-1, -1, -1, -1, 8, -1, -1, -1, -1] })
       .resize(targetWidth, targetHeight, { kernel: 'lanczos3' })),
   ])
