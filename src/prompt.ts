@@ -36,7 +36,6 @@ Give a detailed analysis of the represented image. Cover:
 7. Symmetry, repetition, texture, and other notable patterns
 8. Possible depth, overlap, or spatial relationships
 9. Features that appear especially informative
-10. Ambiguities or information lost during conversion
 
 Describe what these features could represent when useful, but distinguish direct
 visual evidence from interpretation.
@@ -64,7 +63,7 @@ guesses:
 
 Rank the guesses by plausibility. Assign each a relative likelihood, with the
 three likelihoods summing to 100%. For every guess, explain which observations
-support it and which observations make it uncertain.
+support it.
 
 Use this output format:
 
@@ -82,22 +81,16 @@ Use this output format:
 ### Spatial relationships
 <complete analysis>
 
-### Ambiguities
-<missing, conflicting, or unreliable information>
-
 ## Top three educated guesses
 
 1. <concrete real-world interpretation> — <relative likelihood>%
    - Supporting evidence: <specific evidence from the representations>
-   - Uncertainty: <conflicting evidence or missing details>
 
 2. <concrete real-world interpretation> — <relative likelihood>%
    - Supporting evidence: <specific evidence from the representations>
-   - Uncertainty: <conflicting evidence or missing details>
 
 3. <concrete real-world interpretation> — <relative likelihood>%
    - Supporting evidence: <specific evidence from the representations>
-   - Uncertainty: <conflicting evidence or missing details>
 
 The image representation follows in the user message, wrapped in
 <image_representation> tags.`

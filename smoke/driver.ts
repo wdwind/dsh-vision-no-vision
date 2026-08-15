@@ -62,11 +62,11 @@ class MockVisionAdapter extends LlmAdapter {
     if (isJpeg) {
       console.log(
         '[smoke] jpeg exif orientation applied (144x108 -> 108x144):',
-        userText.includes('size=108x144') && userText.includes('grid_size=72x43'),
+        userText.includes('size=108x144') && userText.includes('grid_size=72x96'),
       )
     } else {
       console.log('[smoke] png decoded (format/size/grid):', userText.includes('format=PNG')
-        && userText.includes('size=144x108') && userText.includes('grid_size=72x24'))
+        && userText.includes('size=144x108') && userText.includes('grid_size=72x54'))
     }
     const text = [
       '## Visual analysis',
@@ -77,7 +77,6 @@ class MockVisionAdapter extends LlmAdapter {
       '## Top three educated guesses',
       '1. a red sun over a green field — 60%',
       '   - Supporting evidence: rounded high-contrast object top-left; horizontal horizon line; green lower region',
-      '   - Uncertainty: the lower rectangle could be a building rather than vegetation',
     ].join('\n')
     yield { type: 'block-start', index: 0, blockType: 'text' }
     yield { type: 'text-delta', index: 0, text }
