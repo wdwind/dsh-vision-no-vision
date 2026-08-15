@@ -6,7 +6,7 @@ A [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
 ## Install
 
 ```
-dsh plugin --profile web add dsh-vision-no-vision
+pnpm dsh plugin --profile web add dsh-vision-no-vision
 ```
 
 ## Note

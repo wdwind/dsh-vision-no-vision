@@ -74,9 +74,10 @@ class MockVisionAdapter extends LlmAdapter {
       isJpeg
         ? 'The representation shows the same landscape rotated to portrait: the sky region is to the left, the grass to the right.'
         : 'The representation shows a bright landscape: a light upper region above a darker lower band, with a small dense rounded object in the upper-left and a rectangular mass in the lower middle.',
-      '## Top three educated guesses',
-      '1. a red sun over a green field — 60%',
+      '## Conclusion',
+      '**The image shows: a red sun over a green field** — confidence 80%',
       '   - Supporting evidence: rounded high-contrast object top-left; horizontal horizon line; green lower region',
+      '   - Ruled out: a red balloon over a lawn — the horizon is straight and the red object is small, high, and circular, matching a sun',
     ].join('\n')
     yield { type: 'block-start', index: 0, blockType: 'text' }
     yield { type: 'text-delta', index: 0, text }
