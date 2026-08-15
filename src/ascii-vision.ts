@@ -51,7 +51,7 @@ function isFile(path: string): boolean {
 
 /** Aspect-ratio-corrected height for a fixed-width text grid. */
 function gridHeight(width: number, height: number, targetWidth: number): number {
-  return Math.max(1, Math.round(targetWidth * height / width * 0.45))
+  return Math.max(1, Math.round(targetWidth * height / width * 1))
 }
 
 /** Nearest coarse palette code; the first entry wins ties. */
