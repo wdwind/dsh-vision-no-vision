@@ -4,10 +4,10 @@
   "description": "Gives a text-only LLM vision capability",
   "type": "module",
   "main": "lib/index.js",
-  "types": "lib/types/index.d.ts",
+  "types": "lib/index.d.ts",
   "exports": {
     ".": {
-      "types": "./lib/types/index.d.ts",
+      "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
     }
   },
