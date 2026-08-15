@@ -11,4 +11,4 @@ pnpm dsh plugin --profile web add dsh-vision-no-vision
 
 ## Note
 
-Seriously, it is not a serious plugin :P . The tool generates an ascii-art from the input image and feed it into the text-only LLM to guess the content.
+Seriously, it is not a serious plugin 😝. The tool generates an ascii-art from the input image and feed it into the text-only LLM to guess the content.
